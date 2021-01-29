@@ -1,3 +1,5 @@
+import { ApiGraphTimeMode } from '~/modules/stat/services/ApiGraphTimeMode';
+
 export interface TripSearchInterface {
   tz?: string;
   campaign_id?: number[];
@@ -14,6 +16,7 @@ export interface TripSearchInterface {
   ranks?: string[];
   operator_id?: number[];
   territory_id?: number[];
+  group_by?: ApiGraphTimeMode;
 }
 
 export interface TripSearchInterfaceWithPagination extends TripSearchInterface {
