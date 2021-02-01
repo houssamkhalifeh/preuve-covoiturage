@@ -1,8 +1,8 @@
+import { WeekDay } from '@angular/common';
 import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, AbstractControl, FormControl, Validators } from '@angular/forms';
-import { WeekDay } from '@angular/common';
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
-import { MAT_MOMENT_DATE_FORMATS, MomentDateAdapter } from '@angular/material-moment-adapter';
+import { MomentDateAdapter } from '@angular/material-moment-adapter';
 
 import { FilterService } from '~/modules/filter/services/filter.service';
 import { AuthenticationService } from '~/core/services/authentication/authentication.service';
@@ -12,7 +12,6 @@ import { DestroyObservable } from '~/core/components/destroy-observable';
 import { UserGroupEnum } from '~/core/enums/user/user-group.enum';
 import { FilterUxInterface } from '~/core/interfaces/filter/filterUxInterface';
 import { dayLabelCapitalized } from '~/core/const/days.const';
-import { dateRangeValidator } from '~/modules/filter/validators/date-range.validator';
 
 @Component({
   selector: 'app-filter',
@@ -20,14 +19,28 @@ import { dateRangeValidator } from '~/modules/filter/validators/date-range.valid
   styleUrls: ['./filter.component.scss'],
   providers: [
     { provide: DateAdapter, useClass: MomentDateAdapter, deps: [MAT_DATE_LOCALE] },
-    { provide: MAT_DATE_FORMATS, useValue: MAT_MOMENT_DATE_FORMATS },
+    {
+      provide: MAT_DATE_FORMATS,
+      useValue: {
+        parse: {
+          dateInput: ['l', 'LL'],
+        },
+        display: {
+          dateInput: 'L',
+          monthYearLabel: 'MMM YYYY',
+          dateA11yLabel: 'LL',
+          monthYearA11yLabel: 'MMMM YYYY',
+        },
+      },
+    },
   ],
 })
 export class FilterComponent extends DestroyObservable implements OnInit {
   public filterForm: FormGroup;
   public classes = TRIP_RANKS;
   public tripStatusList = [TripStatusEnum.OK];
-  public minDate: string;
+  public minStartDate: Date;
+  public maxEndDate: Date;
 
   public days: WeekDay[] = [1, 2, 3, 4, 5, 6, 0];
 
@@ -56,11 +69,11 @@ export class FilterComponent extends DestroyObservable implements OnInit {
   }
 
   get startControl(): FormControl {
-    return this.filterForm.get('date').get('start') as FormControl;
+    return this.filterForm.get('date.start') as FormControl;
   }
 
   get endControl(): FormControl {
-    return this.filterForm.get('date').get('end') as FormControl;
+    return this.filterForm.get('date.end') as FormControl;
   }
 
   public get hasGroupOperatorOrRegistry(): boolean {
@@ -83,14 +96,6 @@ export class FilterComponent extends DestroyObservable implements OnInit {
       if (!this.countFilters(filters)) this.initForm();
       this.filtersCount.emit(this.countFilters(filters));
       this.hideFiltersPanel();
-    });
-
-    // date input components
-    this.startControl.valueChanges.subscribe(() => {
-      this.onDateInput();
-    });
-    this.endControl.valueChanges.subscribe(() => {
-      this.onDateInput();
     });
   }
 
@@ -124,28 +129,6 @@ export class FilterComponent extends DestroyObservable implements OnInit {
     return TRIP_STATUS_FR[status];
   }
 
-  /**
-   * Called on each input in either date field
-   */
-  public onDateInput(): void {
-    this.filterForm.updateValueAndValidity();
-
-    const startError = !this.startControl.value ? { required: true } : null;
-
-    if (this.filterForm.hasError('dateRange')) {
-      this.startControl.setErrors({
-        dateRange: true,
-        ...startError,
-      });
-      this.endControl.setErrors({
-        dateRange: true,
-      });
-    } else {
-      this.startControl.setErrors(startError);
-      this.endControl.setErrors(null);
-    }
-  }
-
   public countFilters(f: FilterUxInterface | {} = {}): number {
     if (f && JSON.stringify(f) === '{}') {
       return 0;
@@ -172,36 +155,35 @@ export class FilterComponent extends DestroyObservable implements OnInit {
   }
 
   private initForm(): void {
-    const dayMinus1Year = new Date();
-    const dayMinus2Year = new Date();
-
-    dayMinus2Year.setMonth(dayMinus2Year.getMonth() - 24);
-    dayMinus1Year.setMonth(dayMinus1Year.getMonth() - 12);
+    // init date picker value and limits in the past
+    const dayMinus1Year = new Date(new Date().setMonth(new Date().getMonth() - 12));
+    const dayMinus2Year = new Date(new Date().setMonth(new Date().getMonth() - 24));
+    const dayMinus5Days = new Date(new Date().setDate(new Date().getDate() - 5));
 
     dayMinus1Year.setHours(0, 0, 0, 0);
     dayMinus2Year.setHours(0, 0, 0, 0);
+    dayMinus5Days.setHours(0, 0, 0, 0);
 
-    this.minDate = dayMinus2Year.toISOString();
+    this.minStartDate = dayMinus2Year;
+    this.maxEndDate = dayMinus5Days;
 
-    this.filterForm = this.fb.group(
-      {
-        campaignIds: [[]],
-        date: this.fb.group({
-          start: [dayMinus1Year.toISOString()],
-          end: [null],
-        }),
-        days: [[]],
-        insees: [[]],
-        distance: this.fb.group({
-          min: [null, [Validators.min(0), Validators.max(150)]],
-          max: [null, [Validators.min(0), Validators.max(150)]],
-        }),
-        ranks: [[]],
-        status: [null],
-        operatorIds: [[]],
-        territoryIds: [[]],
-      },
-      { validator: dateRangeValidator },
-    );
+    // init the form values
+    this.filterForm = this.fb.group({
+      campaignIds: [[]],
+      date: this.fb.group({
+        start: [dayMinus1Year],
+        end: [null],
+      }),
+      days: [[]],
+      insees: [[]],
+      distance: this.fb.group({
+        min: [null, [Validators.min(0), Validators.max(150)]],
+        max: [null, [Validators.min(0), Validators.max(150)]],
+      }),
+      ranks: [[]],
+      status: [null],
+      operatorIds: [[]],
+      territoryIds: [[]],
+    });
   }
 }

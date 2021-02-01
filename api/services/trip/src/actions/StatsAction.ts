@@ -1,6 +1,6 @@
 // tslint:disable:variable-name
 import { Action } from '@ilos/core';
-import { handler, ContextType } from '@ilos/common';
+import { handler } from '@ilos/common';
 
 import { handlerConfig, ParamsInterface, ResultInterface } from '../shared/trip/stats.contract';
 import { TripRepositoryProvider } from '../providers/TripRepositoryProvider';
@@ -27,7 +27,6 @@ import * as middlewareConfig from '../config/middlewares';
         endPath: 'date.end',
         minStart: () => new Date(new Date().getTime() - middlewareConfig.date.minStartDefault),
         maxEnd: () => new Date(),
-        applyDefault: true,
       },
     ],
   ],
@@ -37,7 +36,7 @@ export class StatsAction extends Action {
     super();
   }
 
-  public async handle(params: ParamsInterface, context: ContextType): Promise<ResultInterface> {
+  public async handle(params: ParamsInterface): Promise<ResultInterface> {
     return (await this.cache.getOrBuild(async () => this.pg.stats(params), params)) || [];
   }
 }
