@@ -25,8 +25,4 @@ export class TripStatsComponent extends DestroyObservable implements OnInit {
   get statsList(): StatNavName[] {
     return this.isTerritoryOrRegistry ? PUBLIC_STATS : OPERATOR_STATS;
   }
-
-  get isOperator(): boolean {
-    return this.authenticationService.hasAnyGroup([UserGroupEnum.OPERATOR]);
-  }
 }
